@@ -1,0 +1,11 @@
+Model Information:
+* title:	Fast Fredbear TNAF
+* source:	https://sketchfab.com/3d-models/fast-fredbear-tnaf-84fc73195b4643a6bc58792ddd5f037d
+* author:	AdamNeverStopsGaming (https://sketchfab.com/adamneverstopsgaming)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Fast Fredbear TNAF" (https://sketchfab.com/3d-models/fast-fredbear-tnaf-84fc73195b4643a6bc58792ddd5f037d) by AdamNeverStopsGaming (https://sketchfab.com/adamneverstopsgaming) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
