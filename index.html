@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Hello Neighbor: FREDBEAR FINAL FIX</title>
+    <title>Hello Neighbor: FREDBEAR FINAL</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
         
@@ -27,6 +27,7 @@
 
         #debug-msg {
             color: yellow; font-weight: bold; margin-top: 10px; border-top: 1px solid #555; padding-top: 5px;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -41,10 +42,8 @@
         STATUS: <span id="status">NEIGHBOR ACTIVE</span><br>
         <div id="inv">Shotgun: [EQUIPPED]</div>
         <div id="debug-msg">
-            DEBUG CONTROLS:<br>
-            [O] Shrink Fredbear<br>
-            [P] Grow Fredbear<br>
-            Current Scale: <span id="size-display">30.0</span>
+            SIZE: 16.0 (Perfect)<br>
+            ANIM: <span id="anim-name">Searching...</span>
         </div>
     </div>
 
@@ -110,34 +109,43 @@
         // 2. FREDBEAR (GLTF)
         let fredbearModel = null;
         let mixer = null;
-        let scaleVal = 30.0; // START HUGE SO YOU CAN SEE HIM
+        let scaleVal = 16.0; // PERFECT HEIGHT
         
         const loader = new GLTFLoader();
         loader.load('scene.gltf', function(gltf) {
-            console.log("FREDBEAR LOADED!");
             fredbearModel = gltf.scene;
             fredbearModel.position.set(20, 0, -50); 
-            
-            // Apply scale
             fredbearModel.scale.set(scaleVal, scaleVal, scaleVal);
-            document.getElementById('size-display').innerText = scaleVal.toFixed(1);
-
             scene.add(fredbearModel);
 
-            // --- ANIMATION FIX: PLAY WHATEVER IS THERE ---
+            // --- SMART ANIMATION SELECTOR ---
             if(gltf.animations.length > 0) {
-                console.log("Animations found:", gltf.animations);
                 mixer = new THREE.AnimationMixer(fredbearModel);
-                
-                // FORCE PLAY THE FIRST ANIMATION (Usually "test", "run", "walk", or "Take 001")
-                // We don't care about the name anymore, we just grab index 0.
-                const clip = gltf.animations[0];
-                console.log("Playing animation: " + clip.name);
-                
-                const action = mixer.clipAction(clip);
+                let chosenClip = gltf.animations[0]; // Default
+                let foundSpecific = false;
+
+                // 1. Log names to help debugging
+                console.log("Found Animations:", gltf.animations.map(a => a.name));
+
+                // 2. Look for keywords
+                gltf.animations.forEach(clip => {
+                    const name = clip.name.toLowerCase();
+                    if(name.includes('run') || name.includes('walk') || name.includes('charge')) {
+                        chosenClip = clip;
+                        foundSpecific = true;
+                    }
+                });
+
+                // 3. If no keyword found, try Index 1 (often Run) instead of Index 0 (often Idle)
+                if(!foundSpecific && gltf.animations.length > 1) {
+                    chosenClip = gltf.animations[1];
+                }
+
+                document.getElementById('anim-name').innerText = chosenClip.name;
+                const action = mixer.clipAction(chosenClip);
                 action.play();
             } else {
-                console.warn("NO ANIMATIONS IN FILE");
+                document.getElementById('anim-name').innerText = "NONE FOUND";
             }
         }, undefined, function(e) { console.error(e); });
 
@@ -153,23 +161,7 @@
         let gameOver = false;
 
         const keys = {w:false, a:false, s:false, d:false};
-        document.addEventListener('keydown', e => {
-            keys[e.key.toLowerCase()] = true;
-            
-            // --- DEBUG SIZE KEYS ---
-            if(fredbearModel) {
-                if(e.key.toLowerCase() === 'p') {
-                    scaleVal += 1;
-                    fredbearModel.scale.set(scaleVal, scaleVal, scaleVal);
-                    document.getElementById('size-display').innerText = scaleVal.toFixed(1);
-                }
-                if(e.key.toLowerCase() === 'o') {
-                    scaleVal = Math.max(0.1, scaleVal - 1);
-                    fredbearModel.scale.set(scaleVal, scaleVal, scaleVal);
-                    document.getElementById('size-display').innerText = scaleVal.toFixed(1);
-                }
-            }
-        });
+        document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
         document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
         
         document.addEventListener('mousedown', () => {
@@ -196,7 +188,7 @@
                     neighborAlive = false;
                     neighbor.rotation.x = -Math.PI/2; 
                     fredbearAggro = true;
-                    fredbearSpeed = 0.6; // Base speed, scales with size effectively
+                    fredbearSpeed = 0.6; 
                     audioRun.play().catch(e=>console.log("Audio waiting"));
                     document.getElementById('status').innerHTML = "NEIGHBOR DOWN! <span style='color:red'>RUN!</span>";
                 }
@@ -204,15 +196,11 @@
             // Hit Fredbear (Stun)
             if(fredbearModel) {
                  const dist = camera.position.distanceTo(fredbearModel.position);
-                 // Simple dist check for now
-                 if(dist < 100 && fredbearAggro) {
-                     // Check aim roughly
-                     const cDir = new THREE.Vector3(); camera.getWorldDirection(cDir);
-                     const tDir = fredbearModel.position.clone().sub(camera.position).normalize();
-                     if(cDir.dot(tDir) > 0.8) {
-                        fredbearSpeed = 0.1; // Slow
-                        setTimeout(() => { if(fredbearAggro) fredbearSpeed = 0.6; }, 1000);
-                     }
+                 const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
+                 const toFred = fredbearModel.position.clone().sub(camera.position).normalize();
+                 if(camDir.dot(toFred) > 0.8 && dist < 100) {
+                     fredbearSpeed = 0.1; // Slow down
+                     setTimeout(() => { if(fredbearAggro) fredbearSpeed = 0.6; }, 1000);
                  }
             }
         }
@@ -231,16 +219,15 @@
                 if(keys.d) camera.position.addScaledVector(right, 0.6);
             }
 
+            // CRITICAL: UPDATE THE ANIMATION
             if(mixer) mixer.update(delta);
 
             if(fredbearModel && !gameOver) {
                 if(fredbearAggro) {
                     fredbearModel.lookAt(camera.position.x, 0, camera.position.z);
-                    fredbearModel.translateZ(fredbearSpeed * (scaleVal > 10 ? 3 : 1)); // Move faster if huge
+                    fredbearModel.translateZ(fredbearSpeed * (scaleVal/10)); 
                     
-                    // Collision distance depends on scale
-                    const catchDist = scaleVal * 1.5; 
-                    if(camera.position.distanceTo(fredbearModel.position) < catchDist) {
+                    if(camera.position.distanceTo(fredbearModel.position) < 20) { // Bigger hit box for big bear
                         gameOver = true;
                         document.exitPointerLock();
                         document.getElementById('jumpscare-container').style.display = 'flex';
