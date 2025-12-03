@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Hello Neighbor: FREDBEAR FINAL</title>
+    <title>Hello Neighbor: NIGHTMARE MODE</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
         
@@ -31,6 +31,8 @@
         }
         
         .highlight { color: cyan; }
+        .danger { color: red; animation: shake 0.5s infinite; }
+        @keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(2px); } 75% { transform: translateX(-2px); } }
     </style>
 </head>
 <body>
@@ -80,6 +82,9 @@
         // --- ASSETS ---
         const audioRun = new Audio('run.mp3');
         audioRun.loop = true;
+        // Make running sound faster/scarier
+        audioRun.playbackRate = 1.2; 
+        
         const scareVid = document.getElementById('scare-vid');
         scareVid.onended = function() { location.reload(); };
 
@@ -117,7 +122,7 @@
         let animationsList = [];
         let currentAction = null;
         
-        // ANIMATION INDICES FROM YOUR SCREENSHOTS
+        // ANIMATION INDICES
         const ANIM_IDLE = 21; // Test2
         const ANIM_RUN = 16;  // Fredbear_Run_Anim
         const ANIM_STUN = 1;  // Fredbear_Beartrap_Anim
@@ -134,30 +139,23 @@
             if(gltf.animations.length > 0) {
                 animationsList = gltf.animations;
                 mixer = new THREE.AnimationMixer(fredbearModel);
-                
-                // START IDLE (Neighbor Alive)
                 playAnimation(ANIM_IDLE); 
             } else {
                 document.getElementById('anim-name').innerText = "NO ANIMATIONS";
             }
         }, undefined, function(e) { console.error(e); });
 
-        // Helper to switch animations smoothly
         function playAnimation(index) {
             if(!mixer || !animationsList[index]) return;
-            
             const newClip = animationsList[index];
             const newAction = mixer.clipAction(newClip);
-            
             if(currentAction && currentAction !== newAction) {
                 currentAction.fadeOut(0.2);
             }
-            
             newAction.reset();
             newAction.fadeIn(0.2);
             newAction.play();
             currentAction = newAction;
-
             document.getElementById('anim-name').innerText = `[${index}] ${newClip.name}`;
         }
 
@@ -169,17 +167,23 @@
         // --- LOGIC ---
         let neighborAlive = true;
         let fredbearAggro = false;
+        
+        // SPEED SETTINGS (NIGHTMARE)
         let fredbearSpeed = 0;
+        const NORMAL_SPEED = 1.1; // SUPER FAST
+        const SLOWED_SPEED = 0.2; 
+        
         let gameOver = false;
         let isStunned = false;
 
-        const keys = {w:false, a:false, s:false, d:false};
+        const keys = {w:false, a:false, s:false, d:false, shift:false};
         
         document.addEventListener('keydown', e => {
             const k = e.key.toLowerCase();
             keys[k] = true;
+            if(e.key === "Shift") keys.shift = true;
             
-            // Size Controls (O / P)
+            // Size Controls
             if(fredbearModel) {
                 if(k === 'p') {
                     scaleVal += 1;
@@ -194,7 +198,10 @@
             }
         });
         
-        document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+        document.addEventListener('keyup', e => {
+            keys[e.key.toLowerCase()] = false;
+            if(e.key === "Shift") keys.shift = false;
+        });
         
         document.addEventListener('mousedown', () => {
             if(!gameOver) {
@@ -222,11 +229,11 @@
                     
                     // NEIGHBOR DEAD -> ACTIVATE FREDBEAR RUN
                     fredbearAggro = true;
-                    fredbearSpeed = 0.6; 
-                    playAnimation(ANIM_RUN); // Switch to Run [16]
+                    fredbearSpeed = NORMAL_SPEED; 
+                    playAnimation(ANIM_RUN); 
                     
                     audioRun.play().catch(e=>console.log("Audio waiting"));
-                    document.getElementById('status').innerHTML = "NEIGHBOR DOWN! <span style='color:red'>RUN!</span>";
+                    document.getElementById('status').innerHTML = "NEIGHBOR DOWN! <span class='danger'>RUN! (SHIFT)</span>";
                 }
             }
             
@@ -237,18 +244,16 @@
                  const toFred = fredbearModel.position.clone().sub(camera.position).normalize();
                  
                  // If looking at him and close enough
-                 if(camDir.dot(toFred) > 0.8 && dist < 100) {
+                 if(camDir.dot(toFred) > 0.8 && dist < 120) {
                      isStunned = true;
                      fredbearSpeed = 0; 
-                     
-                     // PLAY BEARTRAP ANIMATION [1]
                      playAnimation(ANIM_STUN);
                      
-                     // Wait 2 seconds, then resume RUN [16]
+                     // Wait 2 seconds, then resume
                      setTimeout(() => { 
                          if(!gameOver) {
                             isStunned = false;
-                            fredbearSpeed = 0.6; 
+                            fredbearSpeed = NORMAL_SPEED; 
                             playAnimation(ANIM_RUN);
                          }
                      }, 2000);
@@ -262,22 +267,24 @@
             const delta = clock.getDelta();
 
             if(!gameOver) {
+                // PLAYER MOVEMENT (UPDATED SPEED)
+                // Walk: 0.6 | Run: 1.3 (Must hold Shift)
+                const moveSpeed = keys.shift ? 1.3 : 0.6;
+                
                 const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y=0; dir.normalize();
                 const right = new THREE.Vector3(-dir.z, 0, dir.x);
-                if(keys.w) camera.position.addScaledVector(dir, 0.6);
-                if(keys.s) camera.position.addScaledVector(dir, -0.6);
-                if(keys.a) camera.position.addScaledVector(right, -0.6);
-                if(keys.d) camera.position.addScaledVector(right, 0.6);
+                if(keys.w) camera.position.addScaledVector(dir, moveSpeed);
+                if(keys.s) camera.position.addScaledVector(dir, -moveSpeed);
+                if(keys.a) camera.position.addScaledVector(right, -moveSpeed);
+                if(keys.d) camera.position.addScaledVector(right, moveSpeed);
             }
 
             if(mixer) mixer.update(delta);
 
             if(fredbearModel && !gameOver) {
-                // Always face player
                 fredbearModel.lookAt(camera.position.x, 0, camera.position.z);
                 
                 if(fredbearAggro) {
-                    // Move forward if not stunned
                     fredbearModel.translateZ(fredbearSpeed * (scaleVal/10)); 
                     
                     // Collision
