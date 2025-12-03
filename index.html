@@ -9,7 +9,7 @@
             position: absolute; top: 15px; left: 15px;
             color: #00ff00; background: rgba(0,0,0,0.8); padding: 15px; 
             border: 2px solid #00ff00; border-radius: 8px;
-            font-size: 16px; min-width: 250px; z-index: 10;
+            font-size: 16px; min-width: 300px; z-index: 10;
         }
 
         #jumpscare-container {
@@ -27,8 +27,10 @@
 
         #debug-msg {
             color: yellow; font-weight: bold; margin-top: 10px; border-top: 1px solid #555; padding-top: 5px;
-            font-size: 12px;
+            font-size: 14px;
         }
+        
+        .highlight { color: cyan; }
     </style>
 </head>
 <body>
@@ -42,8 +44,11 @@
         STATUS: <span id="status">NEIGHBOR ACTIVE</span><br>
         <div id="inv">Shotgun: [EQUIPPED]</div>
         <div id="debug-msg">
-            SIZE: 16.0 (Perfect)<br>
-            ANIM: <span id="anim-name">Searching...</span>
+            [K] CYCLE ANIMATIONS<br>
+            Current Anim: <span id="anim-name" class="highlight">Loading...</span><br>
+            <br>
+            [O] Shrink / [P] Grow<br>
+            Size: <span id="size-display">10.0</span>
         </div>
     </div>
 
@@ -99,55 +104,49 @@
         const sR=new THREE.Mesh(new THREE.BoxGeometry(2,20,20),sMat); sR.position.set(90,10,-80); scene.add(sR);
         const sB=new THREE.Mesh(new THREE.BoxGeometry(20,20,2),sMat); sB.position.set(80,10,-90); scene.add(sB);
 
-        // --- CHARACTERS ---
-        // 1. Neighbor (Red)
+        // --- NEIGHBOR ---
         const neighbor = new THREE.Group();
         const nMesh = new THREE.Mesh(new THREE.BoxGeometry(4,12,4), new THREE.MeshStandardMaterial({color:0xff0000}));
         nMesh.position.y=6; neighbor.add(nMesh);
         scene.add(neighbor); neighbor.position.set(-20,0,-20);
 
-        // 2. FREDBEAR (GLTF)
+        // --- FREDBEAR SYSTEM ---
         let fredbearModel = null;
         let mixer = null;
-        let scaleVal = 16.0; // PERFECT HEIGHT
+        let scaleVal = 10.0; // UPDATED: Lowered from 16 to 10
+        let animationsList = [];
+        let currentAnimIndex = 0;
         
         const loader = new GLTFLoader();
         loader.load('scene.gltf', function(gltf) {
+            console.log("FREDBEAR LOADED!");
             fredbearModel = gltf.scene;
             fredbearModel.position.set(20, 0, -50); 
             fredbearModel.scale.set(scaleVal, scaleVal, scaleVal);
             scene.add(fredbearModel);
 
-            // --- SMART ANIMATION SELECTOR ---
+            // ANIMATION SETUP
             if(gltf.animations.length > 0) {
+                animationsList = gltf.animations;
                 mixer = new THREE.AnimationMixer(fredbearModel);
-                let chosenClip = gltf.animations[0]; // Default
-                let foundSpecific = false;
-
-                // 1. Log names to help debugging
-                console.log("Found Animations:", gltf.animations.map(a => a.name));
-
-                // 2. Look for keywords
-                gltf.animations.forEach(clip => {
-                    const name = clip.name.toLowerCase();
-                    if(name.includes('run') || name.includes('walk') || name.includes('charge')) {
-                        chosenClip = clip;
-                        foundSpecific = true;
-                    }
-                });
-
-                // 3. If no keyword found, try Index 1 (often Run) instead of Index 0 (often Idle)
-                if(!foundSpecific && gltf.animations.length > 1) {
-                    chosenClip = gltf.animations[1];
-                }
-
-                document.getElementById('anim-name').innerText = chosenClip.name;
-                const action = mixer.clipAction(chosenClip);
-                action.play();
+                playAnimation(0); // Start with first
             } else {
-                document.getElementById('anim-name').innerText = "NONE FOUND";
+                document.getElementById('anim-name').innerText = "NO ANIMATIONS";
             }
         }, undefined, function(e) { console.error(e); });
+
+        // Helper to switch animations
+        function playAnimation(index) {
+            if(!mixer || animationsList.length === 0) return;
+            mixer.stopAllAction();
+            
+            const clip = animationsList[index];
+            const action = mixer.clipAction(clip);
+            action.reset();
+            action.play();
+
+            document.getElementById('anim-name').innerText = `[${index}] ${clip.name}`;
+        }
 
         // --- SHOTGUN ---
         const gun = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 6), new THREE.MeshStandardMaterial({color: 0x555555}));
@@ -161,7 +160,35 @@
         let gameOver = false;
 
         const keys = {w:false, a:false, s:false, d:false};
-        document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        
+        document.addEventListener('keydown', e => {
+            const k = e.key.toLowerCase();
+            keys[k] = true;
+            
+            // --- DEBUG CONTROLS ---
+            // 1. Cycle Animations (K)
+            if(k === 'k') {
+                if(animationsList.length > 0) {
+                    currentAnimIndex = (currentAnimIndex + 1) % animationsList.length;
+                    playAnimation(currentAnimIndex);
+                }
+            }
+
+            // 2. Size Controls (O / P)
+            if(fredbearModel) {
+                if(k === 'p') {
+                    scaleVal += 1;
+                    fredbearModel.scale.set(scaleVal, scaleVal, scaleVal);
+                    document.getElementById('size-display').innerText = scaleVal.toFixed(1);
+                }
+                if(k === 'o') {
+                    scaleVal = Math.max(0.1, scaleVal - 1);
+                    fredbearModel.scale.set(scaleVal, scaleVal, scaleVal);
+                    document.getElementById('size-display').innerText = scaleVal.toFixed(1);
+                }
+            }
+        });
+        
         document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
         
         document.addEventListener('mousedown', () => {
@@ -181,7 +208,7 @@
             const ray = new THREE.Raycaster();
             ray.setFromCamera(new THREE.Vector2(0,0), camera);
 
-            // Hit Neighbor
+            // Neighbor
             if(neighborAlive) {
                 const hits = ray.intersectObject(nMesh);
                 if(hits.length > 0 && hits[0].distance < 100) {
@@ -193,13 +220,13 @@
                     document.getElementById('status').innerHTML = "NEIGHBOR DOWN! <span style='color:red'>RUN!</span>";
                 }
             }
-            // Hit Fredbear (Stun)
+            // Fredbear Stun
             if(fredbearModel) {
                  const dist = camera.position.distanceTo(fredbearModel.position);
                  const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
                  const toFred = fredbearModel.position.clone().sub(camera.position).normalize();
                  if(camDir.dot(toFred) > 0.8 && dist < 100) {
-                     fredbearSpeed = 0.1; // Slow down
+                     fredbearSpeed = 0.1; 
                      setTimeout(() => { if(fredbearAggro) fredbearSpeed = 0.6; }, 1000);
                  }
             }
@@ -219,7 +246,7 @@
                 if(keys.d) camera.position.addScaledVector(right, 0.6);
             }
 
-            // CRITICAL: UPDATE THE ANIMATION
+            // CRITICAL: Keep animation running
             if(mixer) mixer.update(delta);
 
             if(fredbearModel && !gameOver) {
@@ -227,7 +254,7 @@
                     fredbearModel.lookAt(camera.position.x, 0, camera.position.z);
                     fredbearModel.translateZ(fredbearSpeed * (scaleVal/10)); 
                     
-                    if(camera.position.distanceTo(fredbearModel.position) < 20) { // Bigger hit box for big bear
+                    if(camera.position.distanceTo(fredbearModel.position) < (scaleVal * 1.5)) {
                         gameOver = true;
                         document.exitPointerLock();
                         document.getElementById('jumpscare-container').style.display = 'flex';
