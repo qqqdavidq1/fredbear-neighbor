@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Hello Neighbor: FINAL MERGE</title>
+    <title>Hello Neighbor: FREDBEAR FINAL FIX</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
         
@@ -41,10 +41,10 @@
         STATUS: <span id="status">NEIGHBOR ACTIVE</span><br>
         <div id="inv">Shotgun: [EQUIPPED]</div>
         <div id="debug-msg">
-            FREDBEAR DEBUG:<br>
-            Press [O] to Shrink<br>
-            Press [P] to Grow<br>
-            Current Size: <span id="size-display">WAITING</span>
+            DEBUG CONTROLS:<br>
+            [O] Shrink Fredbear<br>
+            [P] Grow Fredbear<br>
+            Current Scale: <span id="size-display">30.0</span>
         </div>
     </div>
 
@@ -55,9 +55,9 @@
         // --- SETUP ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
-        scene.fog = new THREE.Fog(0x87CEEB, 10, 300);
+        scene.fog = new THREE.Fog(0x87CEEB, 10, 400);
 
-        const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
         camera.position.set(0, 10, 160); 
         camera.rotation.y = Math.PI;
 
@@ -66,9 +66,9 @@
         renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(renderer.domElement);
 
-        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
         scene.add(light);
-        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
         sun.position.set(50, 200, 100);
         sun.castShadow = true;
         scene.add(sun);
@@ -79,47 +79,29 @@
         const scareVid = document.getElementById('scare-vid');
         scareVid.onended = function() { location.reload(); };
 
-        // --- MAP BUILDER (RE-ADDED THE HOUSE) ---
+        // --- MAP ---
         const wallMat = new THREE.MeshStandardMaterial({ color: 0xFF8C00 }); 
-        const glassMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, opacity: 0.3, transparent: true });
         const floorMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
-        const walls = [];
-
-        function addWall(w,h,d,x,y,z,ry=0) {
-            const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wallMat);
-            m.position.set(x,y,z); m.rotation.y = ry;
-            scene.add(m); walls.push(m);
-        }
-
-        // Ground & Road
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000,2000), new THREE.MeshStandardMaterial({color: 0x2e7d32}));
+        
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000,3000), new THREE.MeshStandardMaterial({color: 0x2e7d32}));
         ground.rotation.x = -Math.PI/2; scene.add(ground);
-        const road = new THREE.Mesh(new THREE.PlaneGeometry(2000,150), new THREE.MeshStandardMaterial({color: 0x333333}));
+        const road = new THREE.Mesh(new THREE.PlaneGeometry(3000,150), new THREE.MeshStandardMaterial({color: 0x333333}));
         road.rotation.x = -Math.PI/2; road.position.set(0,0.1,150); scene.add(road);
 
-        // THE HOUSE (Simplified for reliability)
-        // Main Hall
+        // House
         const f1 = new THREE.Mesh(new THREE.BoxGeometry(60,1,60), floorMat); f1.position.set(0,0.2,0); scene.add(f1);
-        addWall(20,30,2, -20,15,30); addWall(20,30,2, 20,15,30); // Front
-        addWall(60,30,2, 0,15,-30); // Back
-        addWall(2,30,60, -30,15,0); // Left
-        addWall(2,30,60, 30,15,0); // Right
+        const w1 = new THREE.Mesh(new THREE.BoxGeometry(20,30,2), wallMat); w1.position.set(-20,15,30); scene.add(w1);
+        const w2 = new THREE.Mesh(new THREE.BoxGeometry(20,30,2), wallMat); w2.position.set(20,15,30); scene.add(w2);
+        const wBack = new THREE.Mesh(new THREE.BoxGeometry(60,30,2), wallMat); wBack.position.set(0,15,-30); scene.add(wBack);
         
-        // Roof
-        const roof = new THREE.Mesh(new THREE.ConeGeometry(80,30,4), new THREE.MeshStandardMaterial({color: 0x3e2723}));
-        roof.position.set(0,45,0); roof.rotation.y=Math.PI/4; scene.add(roof);
-
         // Shed
         const sMat = new THREE.MeshStandardMaterial({color: 0x8d6e63});
-        const sG = new THREE.Group();
-        const sL=new THREE.Mesh(new THREE.BoxGeometry(2,20,20),sMat); sL.position.set(-10,10,0);
-        const sR=new THREE.Mesh(new THREE.BoxGeometry(2,20,20),sMat); sR.position.set(10,10,0);
-        const sB=new THREE.Mesh(new THREE.BoxGeometry(20,20,2),sMat); sB.position.set(0,10,-10);
-        const sD=new THREE.Mesh(new THREE.BoxGeometry(18,18,1),new THREE.MeshStandardMaterial({color:0x3e2723})); sD.position.set(0,9,10);
-        sG.add(sL,sR,sB,sD); sG.position.set(80,0,-80); scene.add(sG);
+        const sL=new THREE.Mesh(new THREE.BoxGeometry(2,20,20),sMat); sL.position.set(70,10,-80); scene.add(sL);
+        const sR=new THREE.Mesh(new THREE.BoxGeometry(2,20,20),sMat); sR.position.set(90,10,-80); scene.add(sR);
+        const sB=new THREE.Mesh(new THREE.BoxGeometry(20,20,2),sMat); sB.position.set(80,10,-90); scene.add(sB);
 
         // --- CHARACTERS ---
-        // 1. Neighbor (Red Box)
+        // 1. Neighbor (Red)
         const neighbor = new THREE.Group();
         const nMesh = new THREE.Mesh(new THREE.BoxGeometry(4,12,4), new THREE.MeshStandardMaterial({color:0xff0000}));
         nMesh.position.y=6; neighbor.add(nMesh);
@@ -128,27 +110,35 @@
         // 2. FREDBEAR (GLTF)
         let fredbearModel = null;
         let mixer = null;
-        let scaleVal = 1.0;
+        let scaleVal = 30.0; // START HUGE SO YOU CAN SEE HIM
         
         const loader = new GLTFLoader();
         loader.load('scene.gltf', function(gltf) {
+            console.log("FREDBEAR LOADED!");
             fredbearModel = gltf.scene;
             fredbearModel.position.set(20, 0, -50); 
             
-            // DEFAULT SCALE GUESS
+            // Apply scale
             fredbearModel.scale.set(scaleVal, scaleVal, scaleVal);
-            document.getElementById('size-display').innerText = scaleVal;
+            document.getElementById('size-display').innerText = scaleVal.toFixed(1);
 
-            if(gltf.animations.length > 0) {
-                mixer = new THREE.AnimationMixer(fredbearModel);
-                // Try to find a run/walk anim, else play #0
-                let clip = gltf.animations[0];
-                gltf.animations.forEach(a => {
-                    if(a.name.toLowerCase().includes('run') || a.name.toLowerCase().includes('walk')) clip = a;
-                });
-                mixer.clipAction(clip).play();
-            }
             scene.add(fredbearModel);
+
+            // --- ANIMATION FIX: PLAY WHATEVER IS THERE ---
+            if(gltf.animations.length > 0) {
+                console.log("Animations found:", gltf.animations);
+                mixer = new THREE.AnimationMixer(fredbearModel);
+                
+                // FORCE PLAY THE FIRST ANIMATION (Usually "test", "run", "walk", or "Take 001")
+                // We don't care about the name anymore, we just grab index 0.
+                const clip = gltf.animations[0];
+                console.log("Playing animation: " + clip.name);
+                
+                const action = mixer.clipAction(clip);
+                action.play();
+            } else {
+                console.warn("NO ANIMATIONS IN FILE");
+            }
         }, undefined, function(e) { console.error(e); });
 
         // --- SHOTGUN ---
@@ -166,17 +156,17 @@
         document.addEventListener('keydown', e => {
             keys[e.key.toLowerCase()] = true;
             
-            // --- FREDBEAR SIZE FIXER KEYS ---
+            // --- DEBUG SIZE KEYS ---
             if(fredbearModel) {
                 if(e.key.toLowerCase() === 'p') {
-                    scaleVal *= 2; // Double size
+                    scaleVal += 1;
                     fredbearModel.scale.set(scaleVal, scaleVal, scaleVal);
-                    document.getElementById('size-display').innerText = scaleVal.toFixed(2);
+                    document.getElementById('size-display').innerText = scaleVal.toFixed(1);
                 }
                 if(e.key.toLowerCase() === 'o') {
-                    scaleVal *= 0.5; // Half size
+                    scaleVal = Math.max(0.1, scaleVal - 1);
                     fredbearModel.scale.set(scaleVal, scaleVal, scaleVal);
-                    document.getElementById('size-display').innerText = scaleVal.toFixed(2);
+                    document.getElementById('size-display').innerText = scaleVal.toFixed(1);
                 }
             }
         });
@@ -206,20 +196,23 @@
                     neighborAlive = false;
                     neighbor.rotation.x = -Math.PI/2; 
                     fredbearAggro = true;
-                    fredbearSpeed = 0.6;
-                    audioRun.play();
+                    fredbearSpeed = 0.6; // Base speed, scales with size effectively
+                    audioRun.play().catch(e=>console.log("Audio waiting"));
                     document.getElementById('status').innerHTML = "NEIGHBOR DOWN! <span style='color:red'>RUN!</span>";
                 }
             }
             // Hit Fredbear (Stun)
             if(fredbearModel) {
                  const dist = camera.position.distanceTo(fredbearModel.position);
-                 // Rough aim check
-                 const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
-                 const toFred = fredbearModel.position.clone().sub(camera.position).normalize();
-                 if(camDir.dot(toFred) > 0.9 && dist < 100) {
-                     fredbearSpeed = 0.1; // Slow down
-                     setTimeout(() => { if(fredbearAggro) fredbearSpeed = 0.6; }, 1000);
+                 // Simple dist check for now
+                 if(dist < 100 && fredbearAggro) {
+                     // Check aim roughly
+                     const cDir = new THREE.Vector3(); camera.getWorldDirection(cDir);
+                     const tDir = fredbearModel.position.clone().sub(camera.position).normalize();
+                     if(cDir.dot(tDir) > 0.8) {
+                        fredbearSpeed = 0.1; // Slow
+                        setTimeout(() => { if(fredbearAggro) fredbearSpeed = 0.6; }, 1000);
+                     }
                  }
             }
         }
@@ -243,8 +236,11 @@
             if(fredbearModel && !gameOver) {
                 if(fredbearAggro) {
                     fredbearModel.lookAt(camera.position.x, 0, camera.position.z);
-                    fredbearModel.translateZ(fredbearSpeed); 
-                    if(camera.position.distanceTo(fredbearModel.position) < 5) {
+                    fredbearModel.translateZ(fredbearSpeed * (scaleVal > 10 ? 3 : 1)); // Move faster if huge
+                    
+                    // Collision distance depends on scale
+                    const catchDist = scaleVal * 1.5; 
+                    if(camera.position.distanceTo(fredbearModel.position) < catchDist) {
                         gameOver = true;
                         document.exitPointerLock();
                         document.getElementById('jumpscare-container').style.display = 'flex';
@@ -252,7 +248,6 @@
                         scareVid.play();
                     }
                 } else {
-                    // Fredbear Idle
                     fredbearModel.lookAt(camera.position.x, 0, camera.position.z);
                 }
             }
