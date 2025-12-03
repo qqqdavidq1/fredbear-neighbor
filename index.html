@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Hello Neighbor: NIGHTMARE MODE</title>
+    <title>Hello Neighbor: FREDBEAR SURVIVAL</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
         
@@ -10,6 +10,16 @@
             color: #00ff00; background: rgba(0,0,0,0.8); padding: 15px; 
             border: 2px solid #00ff00; border-radius: 8px;
             font-size: 16px; min-width: 300px; z-index: 10;
+        }
+
+        /* STAMINA BAR STYLES */
+        #stamina-box {
+            width: 100%; height: 20px; border: 2px solid white;
+            margin-top: 10px; background: #333;
+        }
+        #stamina-bar {
+            width: 100%; height: 100%; background: lime;
+            transition: width 0.1s linear, background 0.5s;
         }
 
         #jumpscare-container {
@@ -29,10 +39,6 @@
             color: yellow; font-weight: bold; margin-top: 10px; border-top: 1px solid #555; padding-top: 5px;
             font-size: 14px;
         }
-        
-        .highlight { color: cyan; }
-        .danger { color: red; animation: shake 0.5s infinite; }
-        @keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(2px); } 75% { transform: translateX(-2px); } }
     </style>
 </head>
 <body>
@@ -45,9 +51,15 @@
     <div id="hud">
         STATUS: <span id="status">NEIGHBOR ACTIVE</span><br>
         <div id="inv">Shotgun: [EQUIPPED]</div>
+        
+        STAMINA:
+        <div id="stamina-box">
+            <div id="stamina-bar"></div>
+        </div>
+
         <div id="debug-msg">
             ANIMATION STATE:<br>
-            Current: <span id="anim-name" class="highlight">Loading...</span><br>
+            Current: <span id="anim-name" style="color:cyan">Loading...</span><br>
             <br>
             [O] Shrink / [P] Grow<br>
             Size: <span id="size-display">10.0</span>
@@ -60,8 +72,8 @@
 
         // --- SETUP ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB);
-        scene.fog = new THREE.Fog(0x87CEEB, 10, 400);
+        scene.background = new THREE.Color(0x111111); // Darker sky for horror vibe
+        scene.fog = new THREE.Fog(0x111111, 10, 300);
 
         const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
         camera.position.set(0, 10, 160); 
@@ -72,9 +84,9 @@
         renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(renderer.domElement);
 
-        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
         scene.add(light);
-        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+        const sun = new THREE.DirectionalLight(0xffffff, 1.0);
         sun.position.set(50, 200, 100);
         sun.castShadow = true;
         scene.add(sun);
@@ -82,7 +94,6 @@
         // --- ASSETS ---
         const audioRun = new Audio('run.mp3');
         audioRun.loop = true;
-        // Make running sound faster/scarier
         audioRun.playbackRate = 1.2; 
         
         const scareVid = document.getElementById('scare-vid');
@@ -92,11 +103,9 @@
         const wallMat = new THREE.MeshStandardMaterial({ color: 0xFF8C00 }); 
         const floorMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
         
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000,3000), new THREE.MeshStandardMaterial({color: 0x2e7d32}));
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000,3000), new THREE.MeshStandardMaterial({color: 0x223322}));
         ground.rotation.x = -Math.PI/2; scene.add(ground);
-        const road = new THREE.Mesh(new THREE.PlaneGeometry(3000,150), new THREE.MeshStandardMaterial({color: 0x333333}));
-        road.rotation.x = -Math.PI/2; road.position.set(0,0.1,150); scene.add(road);
-
+        
         // House
         const f1 = new THREE.Mesh(new THREE.BoxGeometry(60,1,60), floorMat); f1.position.set(0,0.2,0); scene.add(f1);
         const w1 = new THREE.Mesh(new THREE.BoxGeometry(20,30,2), wallMat); w1.position.set(-20,15,30); scene.add(w1);
@@ -123,9 +132,9 @@
         let currentAction = null;
         
         // ANIMATION INDICES
-        const ANIM_IDLE = 21; // Test2
-        const ANIM_RUN = 16;  // Fredbear_Run_Anim
-        const ANIM_STUN = 1;  // Fredbear_Beartrap_Anim
+        const ANIM_IDLE = 21; 
+        const ANIM_RUN = 16; 
+        const ANIM_STUN = 1;  
         
         const loader = new GLTFLoader();
         loader.load('scene.gltf', function(gltf) {
@@ -135,7 +144,6 @@
             fredbearModel.scale.set(scaleVal, scaleVal, scaleVal);
             scene.add(fredbearModel);
 
-            // ANIMATION SETUP
             if(gltf.animations.length > 0) {
                 animationsList = gltf.animations;
                 mixer = new THREE.AnimationMixer(fredbearModel);
@@ -168,13 +176,18 @@
         let neighborAlive = true;
         let fredbearAggro = false;
         
-        // SPEED SETTINGS (NIGHTMARE)
+        // NIGHTMARE DIFFICULTY
         let fredbearSpeed = 0;
-        const NORMAL_SPEED = 1.1; // SUPER FAST
-        const SLOWED_SPEED = 0.2; 
+        const NORMAL_SPEED = 1.1; 
         
         let gameOver = false;
         let isStunned = false;
+
+        // STAMINA SYSTEM
+        let stamina = 100;
+        const STAMINA_DRAIN = 0.8; // Drains in ~2 seconds (Hard!)
+        const STAMINA_REGEN = 0.3; // Regenerates slowly
+        let canSprint = true;
 
         const keys = {w:false, a:false, s:false, d:false, shift:false};
         
@@ -227,13 +240,12 @@
                     neighborAlive = false;
                     neighbor.rotation.x = -Math.PI/2; 
                     
-                    // NEIGHBOR DEAD -> ACTIVATE FREDBEAR RUN
                     fredbearAggro = true;
                     fredbearSpeed = NORMAL_SPEED; 
                     playAnimation(ANIM_RUN); 
                     
                     audioRun.play().catch(e=>console.log("Audio waiting"));
-                    document.getElementById('status').innerHTML = "NEIGHBOR DOWN! <span class='danger'>RUN! (SHIFT)</span>";
+                    document.getElementById('status').innerHTML = "NEIGHBOR DOWN! <span style='color:red'>HE IS AWAKE!</span>";
                 }
             }
             
@@ -243,13 +255,11 @@
                  const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
                  const toFred = fredbearModel.position.clone().sub(camera.position).normalize();
                  
-                 // If looking at him and close enough
                  if(camDir.dot(toFred) > 0.8 && dist < 120) {
                      isStunned = true;
                      fredbearSpeed = 0; 
                      playAnimation(ANIM_STUN);
                      
-                     // Wait 2 seconds, then resume
                      setTimeout(() => { 
                          if(!gameOver) {
                             isStunned = false;
@@ -262,15 +272,33 @@
         }
 
         const clock = new THREE.Clock();
+        const staminaBar = document.getElementById('stamina-bar');
+
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
 
             if(!gameOver) {
-                // PLAYER MOVEMENT (UPDATED SPEED)
-                // Walk: 0.6 | Run: 1.3 (Must hold Shift)
-                const moveSpeed = keys.shift ? 1.3 : 0.6;
+                // --- STAMINA LOGIC ---
+                let moveSpeed = 0.6; // Base Walk Speed
+
+                if (keys.shift && stamina > 0) {
+                    moveSpeed = 1.3; // Run Speed
+                    stamina -= STAMINA_DRAIN;
+                } else {
+                    if (stamina < 100) stamina += STAMINA_REGEN;
+                }
+
+                // Clamp Stamina 0-100
+                stamina = Math.max(0, Math.min(100, stamina));
                 
+                // Update UI Color
+                staminaBar.style.width = stamina + '%';
+                if(stamina > 50) staminaBar.style.background = "lime";
+                else if(stamina > 20) staminaBar.style.background = "orange";
+                else staminaBar.style.background = "red";
+
+                // MOVEMENT
                 const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y=0; dir.normalize();
                 const right = new THREE.Vector3(-dir.z, 0, dir.x);
                 if(keys.w) camera.position.addScaledVector(dir, moveSpeed);
@@ -287,7 +315,6 @@
                 if(fredbearAggro) {
                     fredbearModel.translateZ(fredbearSpeed * (scaleVal/10)); 
                     
-                    // Collision
                     if(camera.position.distanceTo(fredbearModel.position) < (scaleVal * 1.5)) {
                         gameOver = true;
                         document.exitPointerLock();
